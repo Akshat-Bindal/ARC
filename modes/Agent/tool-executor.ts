@@ -1,0 +1,162 @@
+import fs from "node:fs";
+import path from "node:path";
+import { homedir } from "node:os";
+import { spawnSync } from "node:child_process";
+import type { AgentConfig, ActionLog } from "./types";
+import { ActionTracker } from "./action-tracker";
+import { error } from "node:console";
+
+const TEXT_EXT= new Set([
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mjs',
+    '.cjs',
+    '.json',
+    '.md',
+    '.mdx',
+    '.css',
+    '.html',
+    '.yml',
+    '.yaml',
+    '.toml',
+    '.txt'
+]);
+
+function isProbablyTextFile(filePath:string): Boolean{
+    const ext=path.extname(filePath).toLowerCase();
+    return TEXT_EXT.has(ext) || ext ==='';
+}
+
+export class ToolExecutor{
+    private overlay=new Map<string,string>();
+    private deleted=new Set<string>();
+    private readonly norm= (rel: string) =>
+        path.posix.normalize(rel.split(path.sep).join("/")).replace(/^\.\//,"");
+
+    constructor(
+        private readonly tracker: ActionTracker,
+        private readonly config: AgentConfig,
+    ){}
+
+    private resolveSafe(rel:string): string{
+        const abs= path.resolve(this.config.codebasePath,rel);
+        const root= path.resolve(this.config.codebasePath);
+        const relcheck= path.relative(root,abs);
+        if(relcheck.startsWith("..") || path.isAbsolute(relcheck)){
+            throw new Error(`Path Escapes workspace: {$rel}`);
+        }
+        return abs;
+    }
+
+    private excluded(relPath:string): boolean{
+        const norm= this.norm(relPath);
+        const segments= norm.split('/');
+        const base= segments[segments.length-1] ?? '';
+         
+        for(const pat of this.config.excludePatterns){
+            if(pat === '.log' && base.endsWith('.log')) return true;
+            if(pat === '.env' && base.endsWith('.env')) return true;
+            if(pat.includes('*')) continue;
+            if(segments.includes(pat) || norm==pat || norm.startsWith(`{$pat}/`)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private assertNotExcluded(rel:string, op:string): void{
+        if(this.excluded(rel)){
+            throw new Error(`{$op}:  path is excluded by policy: {$rel}`);
+        }
+    }
+
+    getEffectivetext(rel:string): string | undefined{
+        const key= this.norm(rel);
+        if(this.deleted.has(key)) return undefined;
+        if(this.overlay.has(key)) return this.overlay.get(key);
+        const abs= this.resolveSafe(rel);
+        if(!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return undefined;
+        return fs.readFileSync(abs,'utf8');   
+    }
+
+    readFile(rel: string): string{
+        this.assertNotExcluded(rel,'read_file');
+        const abs= this.resolveSafe(rel);
+        if(!fs.existsSync(abs) || !fs.statSync(abs).isFile()){
+            throw new Error(`File Not Found: {$rel}`);
+        }
+        const st=fs.statSync(abs);
+        if(st.size > this.config.maxFileSizeToRead){
+            throw new Error(`File too large: {rel}`);
+        }
+        const text=fs.readFileSync(abs,'utf8');
+        this.tracker.log({
+            type: "code_analysis",
+            path: this.norm(rel),
+            details: {after: text, toolName: "read_file"},
+            status: "executed",
+        });
+        return text;
+    }
+
+    createFile(rel: string, content: string): string{
+        if(!this.config.tools.allowFileCreation)
+            throw new Error("File creating disabled");
+        this.assertNotExcluded(rel,"create_file");
+        const key=this.norm(rel);
+        const abs=this.resolveSafe(rel);
+        if(fs.existsSync(abs) && !this.deleted.has(key))
+            throw new Error(`create_file: File already exists: {$rel}`);
+        this.deleted.delete(key);
+        this.overlay.set(key,content);
+        this.tracker.log({
+            type:"file_create",
+            path: key,
+            details: {after: content},
+            status: "pending",
+        });
+        return `Staged new file: {$key}`;
+    }
+
+    modifyFile(rel: string, content:string): string{
+        if(!this.config.tools.allowFileModification)
+            throw new Error("File modify disabled");
+        this.assertNotExcluded(rel, "modify_file");
+        const before=this.getEffectivetext(rel);
+        if(before=== undefined)
+            throw new Error(`modify_file: File not found: {$rel}`);
+        const key=this.norm(rel);
+        this.overlay.set(key,content);
+        this.tracker.log({
+            type:"file_modify",
+            path: key,
+            details:{before, after:content},
+            status:"pending",
+        });
+        return `Staged update: {$key}`;
+    }
+
+    deleteFile(rel: string): string{
+        if(!this.config.tools.allowFileModification){
+            throw new Error("File deletion disabled");
+        }
+        this.assertNotExcluded(rel, "delete_file");
+        const before=this.getEffectivetext(rel);
+        if(before===undefined)
+            throw new Error(`delete_file: file not found: {$rel}`);
+        const key=this.norm(rel);
+        this.overlay.delete(key);
+        this.deleted.add(key);
+        this.tracker.log({
+            type: "file_delete",
+            path: key,
+            details: {before},
+            status: "pending",
+        });
+        return `Staged file deletion:{$rel}`;
+    }
+
+    
+}
