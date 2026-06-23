@@ -12,7 +12,7 @@ export class ActionTracker{
         },
     ):ActionLog{
         const action:ActionLog={
-            id:entry.id ?? `action_$(this.action.length)`,
+            id:entry.id ?? `action_${this.actions.length}`,
             timestamp:entry.timeStamp ?? new Date(),
             type:entry.type,
             path:entry.path,

@@ -104,12 +104,13 @@ export class ToolExecutor {
 
     createFile(rel: string, content: string): string {
         if (!this.config.tools.allowFileCreation)
-            throw new Error("File creating disabled");
+            throw new Error("File creation disabled");
         this.assertNotExcluded(rel, "create_file");
         const key = this.norm(rel);
         const abs = this.resolveSafe(rel);
-        if (fs.existsSync(abs) && !this.deleted.has(key))
+        if (fs.existsSync(abs) && !this.deleted.has(key)){
             throw new Error(`create_file: File already exists: ${rel}`);
+        }
         this.deleted.delete(key);
         this.overlay.set(key, content);
         this.tracker.log({
@@ -123,7 +124,7 @@ export class ToolExecutor {
 
     modifyFile(rel: string, content: string): string {
         if (!this.config.tools.allowFileModification)
-            throw new Error("File modify disabled");
+            throw new Error("File modification disabled");
         this.assertNotExcluded(rel, "modify_file");
         const before = this.getEffectivetext(rel);
         if (before === undefined)
@@ -297,7 +298,7 @@ export class ToolExecutor {
     }
 
     queueShell(command: string): string {
-        if (this.config.tools.allowShellExecution) {
+        if (!this.config.tools.allowShellExecution) {
             throw new Error("Shell execution disabled");
         }
         this.tracker.log({
@@ -363,6 +364,7 @@ export class ToolExecutor {
         return text;
     }
 
+    
     applyApprovedFromTracker(): { errors: string[] } {
         const errors: string[] = [];
         const all = [...this.tracker.getActions()];
@@ -397,6 +399,7 @@ export class ToolExecutor {
                 }
                 else {
                     const target = this.resolveSafe(p);
+                    
                     fs.mkdirSync(path.dirname(target), { recursive: true });
                     fs.writeFileSync(target, a.details.after ?? "", "utf8");
                 }
