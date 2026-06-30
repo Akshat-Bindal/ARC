@@ -1,9 +1,16 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { vertex } from "@ai-sdk/google-vertex";
 
-export function getAgentModel(){
+export type Mode =
+    | "agent"
+    | "plan"
+    | "ask";
 
-    const provider=createOpenRouter({apiKey : process.env.OPENROUTER_API_KEY});
-    const modelId= "openrouter/free";
-    return provider(modelId);
+const MODELS: Record<Mode, string> = {
+    agent: "gemini-3.1-pro-preview",
+    plan: "gemini-2.5-flash",
+    ask: "gemini-2.5-flash",
+};
 
+export function getModel(mode: Mode) {
+    return vertex(MODELS[mode]);
 }

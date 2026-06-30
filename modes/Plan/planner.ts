@@ -8,7 +8,7 @@ import {
 } from "ai";
 import { z } from "zod";
 import chalk from "chalk";
-import { getAgentModel } from "../../AI/ai.config.ts";
+import { getModel } from "../../AI/ai.config.ts";
 import { ActionTracker } from "../Agent/action-tracker.ts";
 import { ToolExecutor } from "../Agent/tool-executor.ts";
 import { defaultAgentConfig } from "../Agent/types.ts";
@@ -135,7 +135,7 @@ export async function generatePlan(goal: string) {
     const executor = new ToolExecutor(tracker, config);
 
     const model = wrapLanguageModel({
-        model: getAgentModel(),
+        model: getModel("plan"),
         middleware: extractJsonMiddleware()
     })
     const tools = {

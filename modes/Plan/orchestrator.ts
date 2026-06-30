@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { isCancel, confirm, text } from "@clack/prompts";
 import { ToolLoopAgent, stepCountIs } from "ai";
-import { getAgentModel } from "../../AI/ai.config";
+import { getModel } from "../../AI/ai.config";
 import { ActionTracker } from "../Agent/action-tracker";
 import { ToolExecutor } from "../Agent/tool-executor.ts";
 import { createAgentTools } from "../Agent/agent-tools.ts";
@@ -50,7 +50,7 @@ export async function runPlanMode(): Promise<void> {
         console.log(chalk.bold(`\n ${step.title}\n`));
 
         const agent = new ToolLoopAgent({
-            model: getAgentModel(),
+            model: getModel("plan"),
             stopWhen: stepCountIs(30),
             tools,
         });

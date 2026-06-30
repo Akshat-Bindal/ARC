@@ -1,6 +1,6 @@
 import { tool, ToolLoopAgent, stepCountIs } from "ai";
 import { z } from "zod";
-import { getAgentModel } from "../../AI/ai.config.ts";
+import { getModel } from "../../AI/ai.config.ts";
 import { ActionTracker } from "../Agent/action-tracker.ts";
 import { ToolExecutor } from "../Agent/tool-executor.ts";
 import { createAgentTools } from "../Agent/agent-tools.ts";
@@ -9,6 +9,7 @@ import { createWebTools } from "../Plan/web-tools.ts";
 import type { Plan, PlanStep } from "../Plan/types.ts";
 import { replyMd } from "./text.ts";
 import { finishOrApprove } from "./approval-session.ts";
+import type { Mode } from "../../AI/ai.config.ts";
 
 function readOnlyConfig():AgentConfig{
     const c= defaultAgentConfig();
@@ -20,9 +21,9 @@ function readOnlyConfig():AgentConfig{
     return c;
 }
 
-function agentOptions(config: AgentConfig, maxSteps: number){
+function agentOptions(config: AgentConfig, maxSteps: number, mode: Mode){
     return{
-        model: getAgentModel(),
+        model: getModel(mode),
         stopWhen: stepCountIs(maxSteps),
         instructions:`Workspace root: ${config.codebasePath}`
     };
@@ -73,7 +74,7 @@ export async function runAsk(ctx:{reply:(t:string,o?:object)=>Promise<unknown>},
     const executor= new ToolExecutor(tracker,config);
     const tools={ ...creatReadOnlyTools(executor),...extraWebTools(tracker)}
     const agent= new ToolLoopAgent({
-        ...agentOptions(config,20),
+        ...agentOptions(config,20,"ask"),
         tools,
     });
 
@@ -87,7 +88,7 @@ export async function runAgent(ctx:{reply:(t:string,o?:object)=>Promise<unknown>
     const executor= new ToolExecutor(tracker, config);
     const tools=createAgentTools(executor);
     const agent= new ToolLoopAgent({
-        ...agentOptions(config,40),
+        ...agentOptions(config,40,"agent"),
         tools,
     });
     const {text}= await agent.generate({prompt:goal});
@@ -110,7 +111,7 @@ export async function runPlanSteps(
         await ctx.reply(`🔧 Executing: *${step.title}*`, { parse_mode: 'Markdown' });
         const prompt= [`Goal: ${plan.goal}`, `Step:${step.title}`, step.description].join("\n");
         const agent= new ToolLoopAgent({
-            ...agentOptions(config,30),
+            ...agentOptions(config,30,"plan"),
             tools,
         });
         const {text}= await agent.generate({ prompt });

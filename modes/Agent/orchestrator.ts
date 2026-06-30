@@ -4,7 +4,7 @@ import { defaultAgentConfig } from "./types";
 import { ActionTracker } from "./action-tracker";
 import { ToolExecutor } from "./tool-executor";
 import { createAgentTools } from "./agent-tools";
-import { getAgentModel } from "../../AI/ai.config";
+import { getModel } from "../../AI/ai.config";
 import { runApprovalFlow } from "./approval";
 import { renderTerminalMarkdown } from "../../tui/terminal-md";
 import { stepCountIs, ToolLoopAgent } from "ai";
@@ -25,7 +25,7 @@ export async function runAgentMode() {
     const tools = createAgentTools(executor);
 
     const agent = new ToolLoopAgent({
-        model: getAgentModel(),
+        model: getModel("agent"),
         stopWhen: stepCountIs(40),
         instructions: [
             `Workspace root: ${config.codebasePath}`,

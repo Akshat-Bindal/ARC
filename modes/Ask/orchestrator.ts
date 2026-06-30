@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { confirm, isCancel, text } from "@clack/prompts";
 import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
-import { getAgentModel } from "../../AI/ai.config";
+import { getModel } from "../../AI/ai.config";
 import { ActionTracker } from "../Agent/action-tracker";
 import { ToolExecutor } from "../Agent/tool-executor";
 import { defaultAgentConfig } from "../Agent/types";
@@ -98,7 +98,7 @@ import { createWebTools } from "../Plan/web-tools";
         };
 
         const agent=new ToolLoopAgent({
-            model: getAgentModel(),
+            model: getModel("ask"),
             stopWhen: stepCountIs(20),
             tools,
         });

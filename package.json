@@ -13,6 +13,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@ai-sdk/google-vertex": "^4.0.153",
     "@clack/core": "^1.4.1",
     "@clack/prompts": "^1.5.1",
     "@mendable/firecrawl-js": "^4.28.3",
