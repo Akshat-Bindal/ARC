@@ -1,10 +1,10 @@
 {
-  "name": "open_claw",
+  "name": "arc",
   "module": "index.ts",
   "type": "module",
-  "private": true,
+  "version": "0.0.1",
   "bin": {
-    "open_claw": "./index.ts"
+    "arc": "./index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

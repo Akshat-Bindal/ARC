@@ -6,8 +6,8 @@ import { runWakeup } from "./tui/wakeup";
 const program = new Command();
 
 program
-    .name("open_claw")
-    .description("My CLI Helper")
+    .name("arc")
+    .description("My personal agent")
     .version("0.0.1");
 
 program
